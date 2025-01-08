@@ -3,21 +3,29 @@ package main
 import (
 	"net/http"
 	"encoding/json"
+	"github.com/google/uuid"
+	"time"
+	// "log"
 )
 
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string `json:"email"`
+}
+
 func (cfg *apiConfig) handlerCreateUsers(w http.ResponseWriter, r *http.Request) {
+	
+	// log.Printf("Trying to create new user...")
+
 	type parameters struct {
 		Email string `json:"email"`
 	}
 
-	/*
 	type response struct {
-		Id string `json:"id"`
-		CreatedAt string `json:"created_at"`
-		UpdatedAt string `json:"updated_at"`
-		Email string `json:"email"`
+		User
 	}
-	*/
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
@@ -27,6 +35,8 @@ func (cfg *apiConfig) handlerCreateUsers(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
 	}
+
+	// log.Printf("Trying to create new user with email '%s'.", params.Email)
 
 	if params.Email == "" {
 		respondWithError(w, http.StatusBadRequest, "Valid email is needed", nil)
@@ -38,15 +48,13 @@ func (cfg *apiConfig) handlerCreateUsers(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create user", err)
 		return
 	}
-
-	/*
-	resp := response{
-		Id: user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email: user.Email,
-	}
-	*/
-
-	respondWithJSON(w, http.StatusCreated, user)
+	
+	respondWithJSON(w, http.StatusCreated, response{
+		User: User{
+			ID: user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email: user.Email,
+		},
+	})
 }
