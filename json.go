@@ -39,5 +39,9 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}){
 		return
 	}
 	w.WriteHeader(code)
-	w.Write(dat)
+
+	// in case the payload is an empty struct, it is marshalled to "{}", but there should be nothing written to the body
+	if string(dat) != "{}" {
+		w.Write(dat)
+	}
 }

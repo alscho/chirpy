@@ -7,7 +7,7 @@ import(
 	"github.com/alscho/chirpy/internal/database"
 	"github.com/google/uuid"
 	"time"
-	"log"
+	// "log"
 )
 
 const defaultExpirationTimeInSeconds = 3600
@@ -68,7 +68,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("email: %s\nuser: %s\ntoken: %s\nrefresh_token:%s", params.Email, user.ID, token, refreshToken)
+	// log.Printf("email: %s\nuser: %s\ntoken: %s\nrefresh_token:%s", params.Email, user.ID, token, refreshToken)
 
 	err = cfg.db.AddRefreshToken(r.Context(), database.AddRefreshTokenParams{
 		Token: refreshToken, 
