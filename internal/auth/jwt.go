@@ -9,9 +9,11 @@ import(
 )
 
 // expiration shouldn't be longer than a month
-const expirationDurationOfConcern = time.Hour*24*30
+const expirationDurationOfConcern = time.Hour*24
 
-func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
+func MakeJWT(userID uuid.UUID, tokenSecret string) (string, error) {
+	const expiresIn = time.Hour
+	
 	if tokenSecret == "" {
 		return "", errors.New("secret token needed")
 	}

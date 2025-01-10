@@ -4,9 +4,10 @@ import(
 	"net/http"
 	"encoding/json"
 	"github.com/alscho/chirpy/internal/auth"
-	//"github.com/alscho/chirpy/internal/database"
+	"github.com/alscho/chirpy/internal/database"
 	"github.com/google/uuid"
 	"time"
+	"log"
 )
 
 const defaultExpirationTimeInSeconds = 3600
@@ -15,7 +16,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Password string `json:"password"`
 		Email string `json:"email"`
-		ExpiresInSeconds int `json:"expires_in_seconds"`
 	}
 	
 	type response struct {
@@ -24,23 +24,16 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt time.Time `json:"updated_at"`
 		Email string `json:"email"`
 		Token string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 	
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	// initializing ExpiresInSeconds in case it's not set
-	params.ExpiresInSeconds = defaultExpirationTimeInSeconds
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
 	}
-
-	if params.ExpiresInSeconds <= 0 || params.ExpiresInSeconds > defaultExpirationTimeInSeconds {
-		params.ExpiresInSeconds = defaultExpirationTimeInSeconds
-	}
-
-	expirationTime := time.Second * time.Duration(params.ExpiresInSeconds)
 
 	if params.Email == "" {
 		respondWithError(w, http.StatusBadRequest, "Valid email is needed", nil)
@@ -53,7 +46,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, cfg.si, expirationTime)
+	token, err := auth.MakeJWT(user.ID, cfg.si)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create token", err)
 		return
@@ -62,9 +55,29 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	tokenUserID, err := auth.ValidateJWT(token, cfg.si)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "no authorization, bad token", err)
+		return
 	}
 	if tokenUserID != user.ID {
 		respondWithError(w, http.StatusUnauthorized, "no authorization, wrong user", nil)
+		return
+	}
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "couldn't create refresh token", err)
+		return
+	}
+
+	log.Printf("email: %s\nuser: %s\ntoken: %s\nrefresh_token:%s", params.Email, user.ID, token, refreshToken)
+
+	err = cfg.db.AddRefreshToken(r.Context(), database.AddRefreshTokenParams{
+		Token: refreshToken, 
+		UserID: user.ID,
+		})
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't add refresh token to database", err)
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, response{
@@ -73,6 +86,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: user.UpdatedAt,
 		Email: user.Email,
 		Token: token,
+		RefreshToken: refreshToken,
 	})
 }
 

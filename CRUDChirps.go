@@ -91,11 +91,13 @@ func (cfg *apiConfig) handlerCreateChirps(w http.ResponseWriter, r *http.Request
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "problem getting the token", err)
+		return
 	}
 
 	userID, err := auth.ValidateJWT(token, cfg.si)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "token bad", err)
+		return
 	}
 
 	type parameters struct {

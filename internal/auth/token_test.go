@@ -43,3 +43,12 @@ func TestGetBearerToken(t *testing.T) {
 		}
 	})
 }
+
+func TestMakeRefreshToken(t *testing.T) {
+	t.Run("void input --> general test", func(t *testing.T) {
+		token, err := MakeRefreshToken()
+		if err != nil {
+			t.Errorf("Expected no error and random 32 bit string. Actual string: %s", token)
+		}
+	})
+}
