@@ -16,6 +16,7 @@ type apiConfig struct {
 	db *database.Queries
 	pf string
 	si string
+	pk string
 }
 
 
@@ -38,6 +39,10 @@ func main(){
 	if serverInfo == "" {
 		log. Fatal("SERVER_INFO must be set")
 	}
+	polkaKey := os.Getenv("POLKA_KEY")
+	if serverInfo == "" {
+		log. Fatal("POLKA_KEY must be set")
+	}
 
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -50,6 +55,7 @@ func main(){
 		db: dbQueries,
 		pf: platform,
 		si: serverInfo,
+		pk: polkaKey,
 	}
 
 	mux := http.NewServeMux()

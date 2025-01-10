@@ -4,10 +4,20 @@ import(
 	"net/http"
 	"github.com/google/uuid"
 	"encoding/json"
+	"github.com/alscho/chirpy/internal/auth"
 	// "log"
 )
 
 func (cfg *apiConfig) handlerPolkaWebhooks(w http.ResponseWriter, r *http.Request) {
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "no valid apiKey found", err)
+		return
+	}
+	if apiKey != cfg.pk {
+		respondWithError(w, http.StatusUnauthorized, "not the correct apiKey from the payments party", nil)
+	}
+	
 	type Data struct {
 		UserID uuid.UUID `json:"user_id"`
 	}
@@ -19,7 +29,7 @@ func (cfg *apiConfig) handlerPolkaWebhooks(w http.ResponseWriter, r *http.Reques
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode request.Body", err)
 		return
