@@ -19,6 +19,57 @@ type Chirp struct {
 	UserID uuid.UUID `json:"user_id"`
 }
 
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	
+	// handling the chirpID
+	idString := r.PathValue("chirpID")
+	if idString == "" {
+		respondWithError(w, http.StatusBadRequest, "no valid chirp id", nil)
+		return
+	}
+	chirpUUID, err := uuid.Parse(idString)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "UUID not valid - parsing impossible", err)
+		return
+	}
+
+	// handling the authentication by extracting the user_id from the given bearer token
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "no valid token found", err)
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.si)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "no authorization, bad token", err)
+		return
+	}
+
+	//log.Printf("Trying to delete chirp.%v as user.%v", chirpUUID, userID)
+
+	// trying to delete the chirp with chirpUUID and userID
+	deletionResult, err := cfg.db.DeleteChirpFromIDAndUserID(r.Context(), database.DeleteChirpFromIDAndUserIDParams{
+		ID: chirpUUID,
+		UserID: userID,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "deletion attempt unsuccessful - unknown why", err)
+		return
+	}
+	if deletionAmount, _ := deletionResult.RowsAffected(); deletionAmount != 1 {
+		if _, err2 := cfg.db.ExistChirp(r.Context(), chirpUUID); err2 != nil {
+			respondWithError(w, http.StatusNotFound, "chirp doesn't exist", err2)
+			return
+		}
+		respondWithError(w, http.StatusForbidden, "authorization error: not the owner of the chirp", err)
+		return		
+	}
+
+	type EmptyStruct struct {}
+
+	respondWithJSON(w, http.StatusNoContent, EmptyStruct{})
+}
+
 func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 
 	type parameters struct {

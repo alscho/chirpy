@@ -24,3 +24,11 @@ WHERE token = $1;
 UPDATE users
 SET email = $2, hashed_password = $3, updated_at = NOW()
 WHERE id = $1;
+
+-- name: DeleteChirpFromIDAndUserID :execresult
+DELETE FROM chirps
+WHERE id = $1 AND user_id = $2;
+
+-- name: ExistChirp :one
+SELECT id FROM chirps
+WHERE id = $1;
