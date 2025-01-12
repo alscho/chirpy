@@ -8,7 +8,10 @@ import(
 	"time"
 	"github.com/alscho/chirpy/internal/database"
 	"github.com/alscho/chirpy/internal/auth"
-	//"log"
+	"sort"
+	"errors"
+	"fmt"
+	// "log"
 )
 
 type Chirp struct {
@@ -115,11 +118,53 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.db.GetChirps(r.Context())
+func parseAuthorID(r *http.Request) (uuid.UUID, error){
+	str := r.URL.Query().Get("author_id")
+	if str == "" {
+		return uuid.UUID{}, errors.New("unset or empty parameter: author_id")
+	}
+	authorID, err := uuid.Parse(str)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't GET chirps", err)
-		return
+		return uuid.UUID{}, fmt.Errorf("UUID not valid - parsing impossible: %v", err)
+	}
+	return authorID, nil
+}
+
+func parseSortOrder(r *http.Request) (string, error){
+	sortBy := r.URL.Query().Get("sort")
+	if sortBy != "asc" && sortBy != "desc"{
+		return "", errors.New("unset or invalid parameter: sort")
+	}
+	return sortBy, nil
+}
+
+func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+	// checks if author_id is set - possible filter option later
+	authorID, _ := parseAuthorID(r)
+	sortBy, _ := parseSortOrder(r)
+
+	// retrieves chirps depending on: author_id set or not
+	var chirps []database.Chirp
+	var err error
+	if (authorID != uuid.UUID{}) {
+		chirps, err = cfg.db.GetChirpsByUserID(r.Context(), authorID)
+		if err != nil {
+			respondWithError(w, http.StatusNotFound, "This user has no chirps", err)
+			return
+		}
+	} else {
+		chirps, err = cfg.db.GetChirps(r.Context())
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Couldn't GET chirps", err)
+			return
+		}
+	} 
+
+	// sorts chirps depending on: sortBy (created_at) - since GetChirpsByUserID and GetChirps already sort by created_at (ascending) only desc is checked
+	if sortBy == "desc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
+		})
 	}
 
 	resp := make([]Chirp, 0)
